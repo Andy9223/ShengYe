@@ -85,8 +85,8 @@
 ```sh
 git clone https://github.com/Andy9223/ShengYe.git
 cd ShengYe
-./scripts/check-parser.sh
-./scripts/build-app.sh
+zsh scripts/check-parser.sh
+zsh scripts/build-app.sh
 ```
 
 构建脚本会生成 Universal 2 的 `声页.app`、ZIP 和 DMG。

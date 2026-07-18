@@ -1,0 +1,2 @@
+cd20220d6070b32523c55d775a5cf90ec9bfd2ef0b1a1f1524ae55745066b541  VoicePage-v1.0.0-macOS-universal.dmg
+7d054df1e4336c6b39809c78e35bace5fa8a37b6bb108e040cf62a509b953512  VoicePage-v1.0.0-macOS-universal.zip

@@ -207,11 +207,132 @@ struct VoiceOption: Identifiable, Hashable {
     let id: String
     let name: String
     let language: String
+    let quality: VoiceQualityTier
+    let gender: VoiceGender
+    let isPersonal: Bool
 
     var displayName: String {
         let locale = Locale(identifier: "zh-Hans")
         let localizedLanguage = locale.localizedString(forIdentifier: language) ?? language
-        return "\(name) · \(localizedLanguage)"
+        let kind = isPersonal ? "个人声音" : quality.label
+        return "\(name) · \(localizedLanguage) · \(kind)"
+    }
+}
+
+enum VoiceQualityTier: Int, CaseIterable, Hashable, Comparable {
+    case standard
+    case enhanced
+    case premium
+
+    static func < (lhs: VoiceQualityTier, rhs: VoiceQualityTier) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+
+    var label: String {
+        switch self {
+        case .standard:
+            return "标准"
+        case .enhanced:
+            return "增强"
+        case .premium:
+            return "高级"
+        }
+    }
+}
+
+enum VoiceGender: String, Hashable {
+    case female
+    case male
+    case neutral
+    case unspecified
+
+    var label: String {
+        switch self {
+        case .female:
+            return "女声"
+        case .male:
+            return "男声"
+        case .neutral:
+            return "中性"
+        case .unspecified:
+            return "未标注"
+        }
+    }
+}
+
+enum ParagraphHighlightColor: String, CaseIterable, Codable, Identifiable {
+    case yellow
+    case green
+    case blue
+    case pink
+    case purple
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .yellow:
+            return "书卷黄"
+        case .green:
+            return "护眼绿"
+        case .blue:
+            return "雾霾蓝"
+        case .pink:
+            return "浅粉"
+        case .purple:
+            return "淡紫"
+        }
+    }
+}
+
+struct AnnotationTextRange: Codable, Equatable, Hashable {
+    let location: Int
+    let length: Int
+
+    init(_ range: NSRange) {
+        location = range.location
+        length = range.length
+    }
+
+    var nsRange: NSRange {
+        NSRange(location: location, length: length)
+    }
+}
+
+struct TextAnnotation: Identifiable, Codable, Equatable {
+    let id: UUID
+    let paragraphIndex: Int
+    var range: AnnotationTextRange
+    var selectedText: String
+    var note: String
+    var highlightColor: ParagraphHighlightColor?
+    var isUnderlined: Bool
+    var modifiedAt: Date
+
+    var isEmpty: Bool {
+        note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && highlightColor == nil
+            && !isUnderlined
+    }
+}
+
+enum PersonalVoiceAccessState: Equatable {
+    case notDetermined
+    case denied
+    case unsupported
+    case authorized
+
+    var label: String {
+        switch self {
+        case .notDetermined:
+            return "尚未授权"
+        case .denied:
+            return "未获授权"
+        case .unsupported:
+            return "此设备不支持"
+        case .authorized:
+            return "已授权"
+        }
     }
 }
 

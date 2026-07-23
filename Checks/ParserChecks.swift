@@ -11,6 +11,9 @@ struct ParserChecks {
         checkLongParagraphSplitting()
         checkChapterRecognition()
         checkSectionRecognition()
+        checkAnnotationRoundTrip()
+        checkReadingLibraryRoundTrip()
+        checkReadingHistoryPeriods()
         checkGB18030TextLoading()
         checkEPUBLoading()
         inspectRealEPUBWhenRequested()
@@ -246,6 +249,32 @@ struct ParserChecks {
         precondition(sections[2].title == "1.2 新的线索", "数字小节标题识别失败")
     }
 
+    private static func checkAnnotationRoundTrip() {
+        let annotation = TextAnnotation(
+            id: UUID(
+                uuidString: "B4C38B18-3B0A-4EA1-92EB-04B1C6926A2E"
+            )!,
+            paragraphIndex: 3,
+            range: AnnotationTextRange(
+                NSRange(location: 2, length: 5)
+            ),
+            selectedText: "被批注文字",
+            note: "这是一条本地段落注释。",
+            highlightColor: .green,
+            isUnderlined: true,
+            modifiedAt: Date(timeIntervalSince1970: 1_789_000_000)
+        )
+
+        do {
+            let data = try JSONEncoder().encode(annotation)
+            let decoded = try JSONDecoder().decode(TextAnnotation.self, from: data)
+            precondition(decoded == annotation, "批注序列化往返失败")
+            precondition(!decoded.isEmpty, "有效批注被错误识别为空")
+        } catch {
+            preconditionFailure("批注序列化失败：\(error.localizedDescription)")
+        }
+    }
+
     private static func checkGB18030TextLoading() {
         let encoding = String.Encoding(
             rawValue: CFStringConvertEncodingToNSStringEncoding(
@@ -276,6 +305,110 @@ struct ParserChecks {
         }
     }
 
+    private static func checkReadingLibraryRoundTrip() {
+        let suiteName = "VoicePage.ParserChecks.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            preconditionFailure("无法创建书库测试存储")
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = ReadingLibraryStore(
+            defaults: defaults,
+            storageKey: "library"
+        )
+        let bookID = UUID()
+        let book = LibraryBook(
+            id: bookID,
+            title: "测试图书",
+            path: "/tmp/VoicePage-Test.epub",
+            fileExtension: "epub",
+            addedAt: Date(timeIntervalSince1970: 100),
+            lastOpenedAt: Date(timeIntervalSince1970: 200),
+            bookmarkData: nil
+        )
+        let history = ReadingHistoryEntry(
+            id: bookID,
+            bookID: bookID,
+            title: book.title,
+            path: book.path,
+            paragraphIndex: 18,
+            chapterTitle: "第六章",
+            progressPercentage: 54,
+            viewedAt: Date(timeIntervalSince1970: 300)
+        )
+
+        store.save(
+            ReadingLibrarySnapshot(
+                books: [book],
+                history: [history]
+            )
+        )
+        let restored = store.load()
+        precondition(restored.books == [book], "我的图书持久化失败")
+        precondition(restored.history == [history], "观看历史持久化失败")
+    }
+
+    private static func checkReadingHistoryPeriods() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 8 * 60 * 60)!
+        let now = calendar.date(
+            from: DateComponents(
+                year: 2026,
+                month: 7,
+                day: 23,
+                hour: 11,
+                minute: 30
+            )
+        )!
+
+        func date(daysAgo: Int, hour: Int) -> Date {
+            let startOfToday = calendar.startOfDay(for: now)
+            let day = calendar.date(
+                byAdding: .day,
+                value: -daysAgo,
+                to: startOfToday
+            )!
+            return calendar.date(
+                byAdding: .hour,
+                value: hour,
+                to: day
+            )!
+        }
+
+        precondition(
+            ReadingHistoryPeriod.period(
+                for: date(daysAgo: 0, hour: 8),
+                relativeTo: now,
+                calendar: calendar
+            ) == .today,
+            "今日观看历史分组失败"
+        )
+        precondition(
+            ReadingHistoryPeriod.period(
+                for: date(daysAgo: 1, hour: 20),
+                relativeTo: now,
+                calendar: calendar
+            ) == .yesterday,
+            "昨日观看历史分组失败"
+        )
+        precondition(
+            ReadingHistoryPeriod.period(
+                for: date(daysAgo: 2, hour: 12),
+                relativeTo: now,
+                calendar: calendar
+            ) == .dayBeforeYesterday,
+            "前天观看历史分组失败"
+        )
+        precondition(
+            ReadingHistoryPeriod.period(
+                for: date(daysAgo: 4, hour: 12),
+                relativeTo: now,
+                calendar: calendar
+            ) == .earlier,
+            "更早观看历史分组失败"
+        )
+    }
+
     private static func checkEPUBLoading() {
         guard let path = ProcessInfo.processInfo.environment["VOICEPAGE_TEST_EPUB"] else {
             preconditionFailure("缺少 EPUB 测试文件路径")
@@ -304,6 +437,15 @@ struct ParserChecks {
             )
             precondition(document.sections.count == 3, "EPUB 小节数量解析失败")
             precondition(document.sections[1].title == "自动翻页", "EPUB 小节标题解析失败")
+            let coverData = DocumentLoader.loadCoverData(
+                from: URL(fileURLWithPath: path)
+            )
+            precondition(
+                coverData
+                    .flatMap { String(data: $0, encoding: .utf8) }?
+                    .contains("VoicePageCoverTest") == true,
+                "EPUB 封面解析失败"
+            )
         } catch {
             preconditionFailure("EPUB 加载失败：\(error.localizedDescription)")
         }

@@ -6,6 +6,7 @@
     <dc:language>zh-CN</dc:language>
   </metadata>
   <manifest>
+    <item id="cover" href="cover.svg" media-type="image/svg+xml" properties="cover-image"/>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
     <item id="chapter2" href="chapter2.xhtml" media-type="application/xhtml+xml"/>

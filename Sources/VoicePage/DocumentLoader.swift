@@ -43,6 +43,85 @@ enum DocumentLoader {
         }
     }
 
+    static func loadCoverData(from url: URL) -> Data? {
+        guard url.pathExtension.lowercased() == "epub" else { return nil }
+
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let fileManager = FileManager.default
+        let tempDirectory = fileManager.temporaryDirectory
+            .appendingPathComponent(
+                "VoicePage-Cover-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        do {
+            try fileManager.createDirectory(
+                at: tempDirectory,
+                withIntermediateDirectories: true
+            )
+        } catch {
+            return nil
+        }
+        defer { try? fileManager.removeItem(at: tempDirectory) }
+
+        let unzip = Process()
+        unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        unzip.arguments = ["-qq", "-o", url.path, "-d", tempDirectory.path]
+        do {
+            try unzip.run()
+            unzip.waitUntilExit()
+        } catch {
+            return nil
+        }
+        guard unzip.terminationStatus == 0 else { return nil }
+
+        let containerURL = tempDirectory
+            .appendingPathComponent("META-INF")
+            .appendingPathComponent("container.xml")
+        guard let containerData = try? Data(contentsOf: containerURL),
+              let opfPath = ContainerXMLParser().parse(data: containerData),
+              let opfData = try? Data(
+                contentsOf: tempDirectory.appendingPathComponent(opfPath)
+              ) else {
+            return nil
+        }
+
+        let package = PackageXMLParser().parse(data: opfData)
+        let baseURL = tempDirectory
+            .appendingPathComponent(opfPath)
+            .deletingLastPathComponent()
+
+        let coverItem: PackageXMLParser.ManifestItem?
+        if let coverItemID = package.coverItemID,
+           let declaredCover = package.manifest[coverItemID],
+           declaredCover.mediaType.hasPrefix("image/") {
+            coverItem = declaredCover
+        } else {
+            coverItem = package.manifest.first(where: { id, item in
+                item.mediaType.hasPrefix("image/")
+                    && (
+                        item.properties
+                            .split(whereSeparator: \.isWhitespace)
+                            .contains("cover-image")
+                        || id.lowercased().contains("cover")
+                        || item.href.lowercased().contains("cover")
+                    )
+            })?.value
+        }
+
+        guard let coverItem else { return nil }
+        let href = coverItem.href.removingPercentEncoding ?? coverItem.href
+        let coverURL = baseURL
+            .appendingPathComponent(href)
+            .standardizedFileURL
+        return try? Data(contentsOf: coverURL)
+    }
+
     private static func loadText(from url: URL) throws -> ReadingDocument {
         let data = try Data(contentsOf: url)
         guard let text = decodeText(data) else {
@@ -826,6 +905,7 @@ private final class PackageXMLParser: NSObject, XMLParserDelegate {
         var spine: [String] = []
         var title: String?
         var tocID: String?
+        var coverItemID: String?
     }
 
     private var package = Package()
@@ -858,6 +938,10 @@ private final class PackageXMLParser: NSObject, XMLParserDelegate {
             }
         case "spine":
             package.tocID = attributeDict["toc"]
+        case "meta":
+            if attributeDict["name"]?.lowercased() == "cover" {
+                package.coverItemID = attributeDict["content"]
+            }
         case "itemref":
             if let idref = attributeDict["idref"] {
                 package.spine.append(idref)

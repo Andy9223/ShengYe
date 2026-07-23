@@ -5,7 +5,7 @@
 <h1 align="center">声页</h1>
 
 <p align="center">
-  macOS 本地朗读阅读器 · 自动翻页 · 完全免费 · 开源 · 无广告
+  macOS 本地朗读阅读器 · 完全免费 · 开源 · 无广告
 </p>
 
 > [!IMPORTANT]

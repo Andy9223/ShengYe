@@ -17,6 +17,7 @@ rm -f "${TEST_EPUB}"
 )
 swiftc \
     Sources/VoicePage/Models.swift \
+    Sources/VoicePage/ReadingLibraryStore.swift \
     Sources/VoicePage/ReadingPaginator.swift \
     Sources/VoicePage/DocumentLoader.swift \
     Checks/ParserChecks.swift \

@@ -16,6 +16,7 @@ rm -f "${TEST_EPUB}"
     /usr/bin/zip -Xr9 "${TEST_EPUB}" META-INF OEBPS >/dev/null
 )
 swiftc \
+    Sources/VoicePage/AppLocalization.swift \
     Sources/VoicePage/Models.swift \
     Sources/VoicePage/ReadingLibraryStore.swift \
     Sources/VoicePage/ReadingPaginator.swift \

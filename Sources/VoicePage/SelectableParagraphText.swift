@@ -15,6 +15,7 @@ struct SelectableParagraphText: NSViewRepresentable {
     let annotations: [TextAnnotation]
     let spokenRange: NSRange?
     let fontSize: Double
+    let language: AppLanguage
     let onSpeak: (Int) -> Void
     let onSelectionCommand: (TextSelectionCommand, NSRange, String) -> Void
 
@@ -29,6 +30,7 @@ struct SelectableParagraphText: NSViewRepresentable {
             annotations: annotations,
             spokenRange: spokenRange,
             fontSize: fontSize,
+            language: language,
             onSpeak: onSpeak,
             onSelectionCommand: onSelectionCommand
         )
@@ -56,6 +58,7 @@ final class VoicePageTextView: NSTextView {
         (TextSelectionCommand, NSRange, String) -> Void
     )?
     private var currentFontSize: Double = 20
+    private var currentLanguage: AppLanguage = .simplifiedChinese
 
     init() {
         let storage = NSTextStorage()
@@ -98,6 +101,7 @@ final class VoicePageTextView: NSTextView {
         annotations: [TextAnnotation],
         spokenRange: NSRange?,
         fontSize: Double,
+        language: AppLanguage,
         onSpeak: @escaping (Int) -> Void,
         onSelectionCommand: @escaping (
             TextSelectionCommand,
@@ -119,6 +123,7 @@ final class VoicePageTextView: NSTextView {
         speechAction = onSpeak
         selectionAction = onSelectionCommand
         currentFontSize = fontSize
+        currentLanguage = language
 
         let visibleText = nsParagraph.substring(with: displayRange)
         let renderedFontSize = CGFloat(
@@ -268,14 +273,14 @@ final class VoicePageTextView: NSTextView {
         }
 
         let highlightItem = NSMenuItem(
-            title: "高亮颜色",
+            title: localized(.contextHighlight),
             action: nil,
             keyEquivalent: ""
         )
-        let colorsMenu = NSMenu(title: "高亮颜色")
+        let colorsMenu = NSMenu(title: localized(.contextHighlight))
         for color in ParagraphHighlightColor.allCases {
             let item = NSMenuItem(
-                title: color.label,
+                title: color.localizedLabel(language: currentLanguage),
                 action: #selector(applyHighlight(_:)),
                 keyEquivalent: ""
             )
@@ -286,7 +291,7 @@ final class VoicePageTextView: NSTextView {
         }
         colorsMenu.addItem(.separator())
         let removeHighlight = NSMenuItem(
-            title: "取消高亮",
+            title: localized(.clearHighlight),
             action: #selector(removeHighlight(_:)),
             keyEquivalent: ""
         )
@@ -296,7 +301,9 @@ final class VoicePageTextView: NSTextView {
         menu.addItem(highlightItem)
 
         let noteItem = NSMenuItem(
-            title: selectionHasNote ? "编辑注释" : "添加注释",
+            title: selectionHasNote
+                ? localized(.editNote)
+                : localized(.addNote),
             action: #selector(addNote(_:)),
             keyEquivalent: ""
         )
@@ -305,7 +312,7 @@ final class VoicePageTextView: NSTextView {
 
         if selectionHasNote {
             let clearNoteItem = NSMenuItem(
-                title: "清除注释",
+                title: localized(.clearNote),
                 action: #selector(clearNote(_:)),
                 keyEquivalent: ""
             )
@@ -314,7 +321,9 @@ final class VoicePageTextView: NSTextView {
         }
 
         let underlineItem = NSMenuItem(
-            title: selectionHasUnderline ? "取消下划线" : "下划线",
+            title: selectionHasUnderline
+                ? localized(.removeUnderline)
+                : localized(.underline),
             action: #selector(toggleUnderline(_:)),
             keyEquivalent: ""
         )
@@ -324,7 +333,7 @@ final class VoicePageTextView: NSTextView {
         menu.addItem(.separator())
 
         let translateItem = NSMenuItem(
-            title: "翻译",
+            title: localized(.translate),
             action: #selector(translateSelection(_:)),
             keyEquivalent: ""
         )
@@ -332,7 +341,7 @@ final class VoicePageTextView: NSTextView {
         menu.addItem(translateItem)
 
         let copyItem = NSMenuItem(
-            title: "拷贝",
+            title: localized(.copy),
             action: #selector(copy(_:)),
             keyEquivalent: "c"
         )
@@ -341,6 +350,10 @@ final class VoicePageTextView: NSTextView {
         menu.addItem(copyItem)
 
         return menu
+    }
+
+    private func localized(_ key: AppText) -> String {
+        AppLocalization.text(key, language: currentLanguage)
     }
 
     @objc private func applyHighlight(_ sender: NSMenuItem) {

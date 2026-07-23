@@ -38,15 +38,19 @@ enum ReadingHistoryPeriod: Int, CaseIterable, Identifiable, Hashable {
     var id: Int { rawValue }
 
     var title: String {
+        localizedTitle(language: .simplifiedChinese)
+    }
+
+    func localizedTitle(language: AppLanguage) -> String {
         switch self {
         case .today:
-            return "今日"
+            return AppLocalization.text(.today, language: language)
         case .yesterday:
-            return "昨日"
+            return AppLocalization.text(.yesterday, language: language)
         case .dayBeforeYesterday:
-            return "前天"
+            return AppLocalization.text(.dayBeforeYesterday, language: language)
         case .earlier:
-            return "更早"
+            return AppLocalization.text(.earlier, language: language)
         }
     }
 

@@ -1,2 +1,3 @@
 c73e3f4a236d3a7ff2d1f2fe64835618de097ee04b8589392e1bb937d5918eab  VoicePage-v1.2.1-macOS-universal.dmg
 dd7cc39ccc3d193cd8c83fc75a9e6079c35a3d85f1227b6f973247bad0b7fcfb  VoicePage-v1.2.1-macOS-universal.zip
+5cb06531338f892ba5cbfb1c296733ca28fe705b8e8dae68dd1da6d886cc6c38  VoicePage-v1.2.1-macOS-universal-multilingual.dmg

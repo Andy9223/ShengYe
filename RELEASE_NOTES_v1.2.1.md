@@ -43,6 +43,7 @@
 
 ### 阅读显示与操作
 
+- 新增首页语言切换，界面支持简体中文、繁体中文、英语、日语、西班牙语、法语、德语和俄语。
 - 修复字号调整可能只触发重新分页、实际字形未及时变化的问题。字号变化后，
   每页文字数量同步调整，全程只需左右翻页。
 - 新增白天、黑夜、跟随系统外观、护眼模式和阅读页面亮度调节。
@@ -52,7 +53,8 @@
 
 ## 下载
 
-- `VoicePage-v1.2.1-macOS-universal.dmg`：推荐安装包
+- `VoicePage-v1.2.1-macOS-universal.dmg`：原版安装包
+- `VoicePage-v1.2.1-macOS-universal-multilingual.dmg`：多语言安装包
 - `VoicePage-v1.2.1-macOS-universal.zip`：备用压缩包
 - `SHA256SUMS.txt`：安装包 SHA-256 完整性校验值
 

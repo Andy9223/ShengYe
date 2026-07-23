@@ -19,9 +19,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.2.1</string>
 	<key>CFBundleVersion</key>
-	<string>7</string>
+	<string>12</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.books</string>
 	<key>LSMinimumSystemVersion</key>
@@ -30,6 +30,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Andy9223. GPL-3.0.</string>
+	<key>NSPersonalVoiceUsageDescription</key>
+	<string>声页仅在本机调用您授权的个人声音朗读所打开的书籍，不读取、导出或上传声音模型。</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
     <key>CFBundleDocumentTypes</key>

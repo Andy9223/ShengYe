@@ -13,13 +13,17 @@ enum ThemePreference: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
 
     var label: String {
+        localizedLabel(language: .simplifiedChinese)
+    }
+
+    func localizedLabel(language: AppLanguage) -> String {
         switch self {
         case .system:
-            return "跟随系统"
+            return AppLocalization.text(.followSystem, language: language)
         case .light:
-            return "白天"
+            return AppLocalization.text(.lightMode, language: language)
         case .dark:
-            return "黑夜"
+            return AppLocalization.text(.darkMode, language: language)
         }
     }
 }
@@ -212,9 +216,15 @@ struct VoiceOption: Identifiable, Hashable {
     let isPersonal: Bool
 
     var displayName: String {
-        let locale = Locale(identifier: "zh-Hans")
+        displayName(language: .simplifiedChinese)
+    }
+
+    func displayName(language appLanguage: AppLanguage) -> String {
+        let locale = Locale(identifier: appLanguage.rawValue)
         let localizedLanguage = locale.localizedString(forIdentifier: language) ?? language
-        let kind = isPersonal ? "个人声音" : quality.label
+        let kind = isPersonal
+            ? AppLocalization.text(.personalVoice, language: appLanguage)
+            : quality.localizedLabel(language: appLanguage)
         return "\(name) · \(localizedLanguage) · \(kind)"
     }
 }
@@ -229,13 +239,17 @@ enum VoiceQualityTier: Int, CaseIterable, Hashable, Comparable {
     }
 
     var label: String {
+        localizedLabel(language: .simplifiedChinese)
+    }
+
+    func localizedLabel(language: AppLanguage) -> String {
         switch self {
         case .standard:
-            return "标准"
+            return AppLocalization.text(.standardQuality, language: language)
         case .enhanced:
-            return "增强"
+            return AppLocalization.text(.enhancedQuality, language: language)
         case .premium:
-            return "高级"
+            return AppLocalization.text(.premiumQuality, language: language)
         }
     }
 }
@@ -247,15 +261,19 @@ enum VoiceGender: String, Hashable {
     case unspecified
 
     var label: String {
+        localizedLabel(language: .simplifiedChinese)
+    }
+
+    func localizedLabel(language: AppLanguage) -> String {
         switch self {
         case .female:
-            return "女声"
+            return AppLocalization.text(.femaleVoice, language: language)
         case .male:
-            return "男声"
+            return AppLocalization.text(.maleVoice, language: language)
         case .neutral:
-            return "中性"
+            return AppLocalization.text(.neutralVoice, language: language)
         case .unspecified:
-            return "未标注"
+            return AppLocalization.text(.unspecifiedVoice, language: language)
         }
     }
 }
@@ -270,17 +288,21 @@ enum ParagraphHighlightColor: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 
     var label: String {
+        localizedLabel(language: .simplifiedChinese)
+    }
+
+    func localizedLabel(language: AppLanguage) -> String {
         switch self {
         case .yellow:
-            return "书卷黄"
+            return AppLocalization.text(.parchmentYellow, language: language)
         case .green:
-            return "护眼绿"
+            return AppLocalization.text(.eyeCareGreen, language: language)
         case .blue:
-            return "雾霾蓝"
+            return AppLocalization.text(.mistBlue, language: language)
         case .pink:
-            return "浅粉"
+            return AppLocalization.text(.softPink, language: language)
         case .purple:
-            return "淡紫"
+            return AppLocalization.text(.palePurple, language: language)
         }
     }
 }
@@ -323,15 +345,19 @@ enum PersonalVoiceAccessState: Equatable {
     case authorized
 
     var label: String {
+        localizedLabel(language: .simplifiedChinese)
+    }
+
+    func localizedLabel(language: AppLanguage) -> String {
         switch self {
         case .notDetermined:
-            return "尚未授权"
+            return AppLocalization.text(.permissionNotDetermined, language: language)
         case .denied:
-            return "未获授权"
+            return AppLocalization.text(.permissionDenied, language: language)
         case .unsupported:
-            return "此设备不支持"
+            return AppLocalization.text(.unsupportedDevice, language: language)
         case .authorized:
-            return "已授权"
+            return AppLocalization.text(.authorized, language: language)
         }
     }
 }
@@ -348,21 +374,25 @@ enum SleepTimerOption: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var label: String {
+        localizedLabel(language: .simplifiedChinese)
+    }
+
+    func localizedLabel(language: AppLanguage) -> String {
         switch self {
         case .off:
-            return "关闭定时"
+            return AppLocalization.text(.timerOff, language: language)
         case .tenMinutes:
-            return "10 分钟"
+            return AppLocalization.text(.tenMinutes, language: language)
         case .twentyMinutes:
-            return "20 分钟"
+            return AppLocalization.text(.twentyMinutes, language: language)
         case .thirtyMinutes:
-            return "30 分钟"
+            return AppLocalization.text(.thirtyMinutes, language: language)
         case .sixtyMinutes:
-            return "60 分钟"
+            return AppLocalization.text(.sixtyMinutes, language: language)
         case .endOfSection:
-            return "读完本小节"
+            return AppLocalization.text(.finishSection, language: language)
         case .endOfChapter:
-            return "读完本章"
+            return AppLocalization.text(.finishChapter, language: language)
         }
     }
 

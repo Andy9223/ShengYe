@@ -35,6 +35,7 @@ struct ContentView: View {
         .preferredColorScheme(
             model.eyeCareMode ? .light : model.themePreference.colorScheme
         )
+        .environment(\.locale, Locale(identifier: model.appLanguage.rawValue))
         .voicePageTranslationPresentation(
             isPresented: $isShowingTranslation,
             text: translationText
@@ -55,16 +56,16 @@ struct ContentView: View {
             }
         }
         .alert(
-            "声页提示",
+            model.localized(.alertTitle),
             isPresented: Binding(
                 get: { model.errorMessage != nil },
                 set: { if !$0 { model.errorMessage = nil } }
             ),
             actions: {
-                Button("好") { model.errorMessage = nil }
+                Button(model.localized(.ok)) { model.errorMessage = nil }
             },
             message: {
-                Text(model.errorMessage ?? "发生未知错误。")
+                Text(model.errorMessage ?? model.localized(.unknownError))
             }
         )
         .sheet(isPresented: $isShowingShortcutGuide) {
@@ -162,39 +163,22 @@ struct ContentView: View {
 
             ScrollView {
                 VStack(spacing: 22) {
-                    HStack(spacing: 16) {
-                        Image(nsImage: NSApp.applicationIconImage)
-                            .resizable()
-                            .interpolation(.high)
-                            .frame(width: 66, height: 66)
-
-                        Text("声页")
-                            .font(.system(size: 32, weight: .semibold, design: .serif))
-
-                        Spacer()
-
-                        Button {
-                            isShowingShortcutGuide = true
-                        } label: {
-                            Label("操作指南", systemImage: "keyboard")
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 16) {
+                            libraryBrand
+                            Spacer(minLength: 16)
+                            libraryHeaderActions
                         }
 
-                        Button {
-                            isShowingVoiceCenter = true
-                        } label: {
-                            Label("音色中心", systemImage: "waveform.badge.plus")
+                        VStack(alignment: .leading, spacing: 14) {
+                            libraryBrand
+                            libraryHeaderActions
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                         }
-
-                        Button {
-                            isImporting = true
-                        } label: {
-                            Label("导入图书", systemImage: "plus")
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
 
                     if model.isLoading {
-                        ProgressView("正在整理章节和正文…")
+                        ProgressView(model.localized(.organizingBook))
                             .controlSize(.large)
                             .frame(height: 110)
                     } else {
@@ -208,7 +192,7 @@ struct ContentView: View {
                                         .foregroundStyle(Color.accentColor)
 
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("继续上次阅读")
+                                        Text(model.localized(.continueReading))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                         Text(lastReading.title)
@@ -260,6 +244,67 @@ struct ContentView: View {
         }
     }
 
+    private var libraryBrand: some View {
+        HStack(spacing: 16) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 66, height: 66)
+
+            Text(model.localized(.appName))
+                .font(.system(size: 32, weight: .semibold, design: .serif))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private var libraryHeaderActions: some View {
+        HStack(spacing: 10) {
+            Picker(
+                selection: Binding(
+                    get: { model.appLanguage },
+                    set: { model.updateAppLanguage($0) }
+                ),
+                label: Label(
+                    model.localized(.language),
+                    systemImage: "globe"
+                )
+            ) {
+                ForEach(AppLanguage.allCases) { language in
+                    Text(language.nativeName).tag(language)
+                }
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+
+            Button {
+                isShowingShortcutGuide = true
+            } label: {
+                Label(
+                    model.localized(.shortcutGuide),
+                    systemImage: "keyboard"
+                )
+            }
+
+            Button {
+                isShowingVoiceCenter = true
+            } label: {
+                Label(
+                    model.localized(.voiceCenter),
+                    systemImage: "waveform.badge.plus"
+                )
+            }
+
+            Button {
+                isImporting = true
+            } label: {
+                Label(model.localized(.importBook), systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
     private var myBooksShortcut: some View {
         Button {
             isShowingBookshelf = true
@@ -275,12 +320,12 @@ struct ContentView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("我的图书")
+                    Text(model.localized(.myBooks))
                         .font(.headline)
                     Text(
                         model.libraryBooks.isEmpty
-                            ? "打开书架并导入图书"
-                            : "\(model.libraryBooks.count) 本图书"
+                            ? model.localized(.openBookshelfAndImport)
+                            : model.localized(.bookCount, model.libraryBooks.count)
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -307,7 +352,7 @@ struct ContentView: View {
     private var viewingHistoryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("观看历史", systemImage: "clock.arrow.circlepath")
+                Label(model.localized(.viewingHistory), systemImage: "clock.arrow.circlepath")
                     .font(.headline)
                 Spacer()
 
@@ -315,8 +360,8 @@ struct ContentView: View {
                     if isSelectingHistory {
                         Button(
                             selectedHistoryIDs.count == model.readingHistory.count
-                                ? "取消全选"
-                                : "全选"
+                                ? model.localized(.deselectAll)
+                                : model.localized(.selectAll)
                         ) {
                             if selectedHistoryIDs.count == model.readingHistory.count {
                                 selectedHistoryIDs.removeAll()
@@ -325,7 +370,7 @@ struct ContentView: View {
                             }
                         }
 
-                        Button("删除选中") {
+                        Button(model.localized(.deleteSelected)) {
                             model.removeHistory(ids: selectedHistoryIDs)
                             selectedHistoryIDs.removeAll()
                             isSelectingHistory = false
@@ -333,7 +378,11 @@ struct ContentView: View {
                         .disabled(selectedHistoryIDs.isEmpty)
                     }
 
-                    Button(isSelectingHistory ? "完成" : "批量管理") {
+                    Button(
+                        isSelectingHistory
+                            ? model.localized(.done)
+                            : model.localized(.batchManage)
+                    ) {
                         isSelectingHistory.toggle()
                         if !isSelectingHistory {
                             selectedHistoryIDs.removeAll()
@@ -347,8 +396,8 @@ struct ContentView: View {
             if model.readingHistory.isEmpty {
                 HomeEmptyState(
                     icon: "clock",
-                    title: "暂无观看历史",
-                    detail: "开始阅读后会自动记录最近位置。"
+                    title: model.localized(.noHistory),
+                    detail: model.localized(.historyWillAppear)
                 )
             } else {
                 ForEach(ReadingHistoryPeriod.allCases) { period in
@@ -358,7 +407,7 @@ struct ContentView: View {
                     if !entries.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
-                                Text(period.title)
+                                Text(period.localizedTitle(language: model.appLanguage))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                 Rectangle()
@@ -369,6 +418,7 @@ struct ContentView: View {
                             ForEach(entries) { entry in
                                 HomeHistoryRow(
                                     entry: entry,
+                                    language: model.appLanguage,
                                     isSelecting: isSelectingHistory,
                                     isSelected: selectedHistoryIDs.contains(entry.id),
                                     onOpen: { model.openHistoryEntry(entry) },
@@ -404,19 +454,19 @@ struct ContentView: View {
                     Button {
                         isShowingBookshelf = false
                     } label: {
-                        Label("返回", systemImage: "chevron.left")
+                        Label(model.localized(.back), systemImage: "chevron.left")
                     }
                     .buttonStyle(.borderless)
-                    .help("返回主页")
+                    .help(model.localized(.backHome))
 
                     Image(systemName: "books.vertical.fill")
                         .font(.title2)
                         .foregroundStyle(Color.accentColor)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("我的图书")
+                        Text(model.localized(.myBooks))
                             .font(.title2.bold())
-                        Text("\(model.libraryBooks.count) 本")
+                        Text(model.localized(.shelfBookCount, model.libraryBooks.count))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -426,7 +476,7 @@ struct ContentView: View {
                     Button {
                         isImporting = true
                     } label: {
-                        Label("导入图书", systemImage: "plus")
+                        Label(model.localized(.importBook), systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -438,11 +488,11 @@ struct ContentView: View {
 
                 if model.libraryBooks.isEmpty {
                     ContentUnavailableView {
-                        Label("书架还是空的", systemImage: "books.vertical")
+                        Label(model.localized(.emptyShelf), systemImage: "books.vertical")
                     } description: {
-                        Text("导入 EPUB 或 TXT 后，图书会保留在这台 Mac 上。")
+                        Text(model.localized(.importedBooksStayLocal))
                     } actions: {
-                        Button("导入第一本图书") {
+                        Button(model.localized(.importFirstBook)) {
                             isImporting = true
                         }
                         .buttonStyle(.borderedProminent)
@@ -466,6 +516,7 @@ struct ContentView: View {
                                     book: book,
                                     coverImage: model.bookCoverImage(for: book.id),
                                     history: model.historyEntry(for: book.id),
+                                    language: model.appLanguage,
                                     onOpen: { model.openLibraryBook(book) },
                                     onRemove: {
                                         model.removeLibraryBook(id: book.id)
@@ -502,10 +553,10 @@ struct ContentView: View {
             Button {
                 model.returnToLibrary()
             } label: {
-                Label("返回", systemImage: "chevron.left")
+                Label(model.localized(.back), systemImage: "chevron.left")
             }
             .buttonStyle(.borderless)
-            .help("返回书架")
+            .help(model.localized(.backBookshelf))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(model.document.title)
@@ -522,7 +573,7 @@ struct ContentView: View {
                     get: { model.selectedChapterIndex },
                     set: { model.selectChapter($0) }
                 ),
-                label: Label("章节", systemImage: "list.bullet.rectangle")
+                label: Label(model.localized(.chapter), systemImage: "list.bullet.rectangle")
             ) {
                 ForEach(model.document.chapters) { chapter in
                     Text(chapter.title).tag(chapter.index)
@@ -530,7 +581,7 @@ struct ContentView: View {
             }
             .pickerStyle(.menu)
             .frame(width: min(isFullScreen ? 380 : 280, 380))
-            .help("选择章节并跳转到该章开头")
+            .help(model.localized(.chooseChapter))
         }
         .padding(.horizontal, isFullScreen ? 38 : 26)
         .padding(.vertical, 14)
@@ -543,7 +594,7 @@ struct ContentView: View {
             VStack(spacing: 14) {
                 ProgressView()
                     .controlSize(.large)
-                Text("正在整理章节和自然段…")
+                Text(model.localized(.organizingParagraphs))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -582,6 +633,7 @@ struct ContentView: View {
                                         for: paragraph.index
                                     ),
                                     fontSize: model.fontSize,
+                                    language: model.appLanguage,
                                     onSpeak: { sentenceOffset in
                                     model.startSpeaking(
                                         at: paragraph.index,
@@ -650,9 +702,9 @@ struct ContentView: View {
             }
         } else {
             ContentUnavailableView(
-                "没有可显示的文字",
+                model.localized(.noReadableText),
                 systemImage: "text.book.closed",
-                description: Text("请返回并打开一本 EPUB 或 TXT 书籍。")
+                description: Text(model.localized(.openReadableBook))
             )
         }
     }
@@ -667,7 +719,7 @@ struct ContentView: View {
             }
             .disabled(model.selectedChapterIndex == 0)
             .keyboardShortcut(.leftArrow, modifiers: [.command, .shift])
-            .help("上一章（⇧⌘←）")
+            .help(model.localized(.previousChapterHelp))
 
             Button {
                 model.showPreviousPage()
@@ -677,7 +729,7 @@ struct ContentView: View {
             }
             .disabled(model.currentPage == 0)
             .keyboardShortcut(.leftArrow, modifiers: .command)
-            .help("上一页（⌘←）")
+            .help(model.localized(.previousPageHelp))
 
             Button {
                 model.startOrResume()
@@ -688,27 +740,37 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.space, modifiers: [])
-            .help(model.isSpeaking ? "暂停朗读（空格）" : "从当前页开始朗读（空格）")
+            .help(
+                model.isSpeaking
+                    ? model.localized(.pauseReadingHelp)
+                    : model.localized(.startReadingHelp)
+            )
 
             if !model.isFollowingSpeech && (model.isSpeaking || model.isPaused) {
                 Button {
                     model.resumeFollowingSpeech()
                 } label: {
-                    Label("返回朗读位置", systemImage: "location.fill")
+                    Label(model.localized(.returnToSpeech), systemImage: "location.fill")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
-                .help("回到当前正在朗读的页面并恢复自动翻页")
+                .help(model.localized(.restoreAutoFollow))
             }
 
             Spacer(minLength: 12)
 
             if isFullScreen {
                 HStack(spacing: 24) {
-                    Label("剩余电量 \(model.batteryText)", systemImage: "battery.75percent")
+                    Label(
+                        model.localized(.batteryRemaining, model.batteryText),
+                        systemImage: "battery.75percent"
+                    )
                     Label(model.clockText, systemImage: "clock")
                     Label(
-                        "进度 \(model.readingProgressPercentage)%",
+                        model.localized(
+                            .progressPercent,
+                            model.readingProgressPercentage
+                        ),
                         systemImage: "chart.bar.fill"
                     )
                 }
@@ -731,7 +793,7 @@ struct ContentView: View {
             }
             .disabled(model.currentPage + 1 >= model.pages.count)
             .keyboardShortcut(.rightArrow, modifiers: .command)
-            .help("下一页（⌘→）")
+            .help(model.localized(.nextPageHelp))
 
             Button {
                 model.selectNextChapter()
@@ -741,7 +803,7 @@ struct ContentView: View {
             }
             .disabled(model.selectedChapterIndex + 1 >= model.document.chapters.count)
             .keyboardShortcut(.rightArrow, modifiers: [.command, .shift])
-            .help("下一章（⇧⌘→）")
+            .help(model.localized(.nextChapterHelp))
         }
         .buttonStyle(.plain)
         .padding(.horizontal, isFullScreen ? 38 : 28)
@@ -753,13 +815,13 @@ struct ContentView: View {
         HStack(spacing: 0) {
             if model.controlsExpanded {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("阅读设置", systemImage: "slider.horizontal.3")
+                    Label(model.localized(.readingSettings), systemImage: "slider.horizontal.3")
                         .font(.headline)
 
                     Divider()
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("朗读声音", systemImage: "waveform")
+                        Label(model.localized(.readingVoice), systemImage: "waveform")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -772,8 +834,14 @@ struct ContentView: View {
                                         .lineLimit(1)
                                     Text(
                                         model.currentVoiceIsPersonal
-                                            ? "个人声音"
-                                            : "\(model.currentVoiceQuality.label)品质"
+                                            ? model.localized(.personalVoice)
+                                            : model.localized(
+                                                .voiceQuality,
+                                                model.currentVoiceQuality
+                                                    .localizedLabel(
+                                                        language: model.appLanguage
+                                                    )
+                                            )
                                     )
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
@@ -790,7 +858,7 @@ struct ContentView: View {
                     }
 
                     settingSlider(
-                        title: "语速",
+                        title: model.localized(.speechRate),
                         icon: "speedometer",
                         valueText: String(format: "%.0f%%", model.speechRate / 0.5 * 100),
                         value: Binding(
@@ -802,11 +870,11 @@ struct ContentView: View {
                     )
 
                     settingToggle(
-                        title: "跟随朗读自动翻页",
+                        title: model.localized(.autoFollow),
                         icon: "rectangle.portrait.on.rectangle.portrait",
                         detail: model.autoFollowSpeech
-                            ? "朗读进入下一页时自动跟随"
-                            : "朗读时保持当前浏览页面",
+                            ? model.localized(.autoFollowOnDetail)
+                            : model.localized(.autoFollowOffDetail),
                         isOn: Binding(
                             get: { model.autoFollowSpeech },
                             set: { model.updateAutoFollowSpeech($0) }
@@ -814,7 +882,7 @@ struct ContentView: View {
                     )
 
                     settingPicker(
-                        title: "停止条件",
+                        title: model.localized(.stopCondition),
                         icon: "moon.zzz",
                         selection: Binding(
                             get: { model.timerOption },
@@ -822,12 +890,15 @@ struct ContentView: View {
                         )
                     ) {
                         ForEach(SleepTimerOption.allCases) { option in
-                            Text(option.label).tag(option)
+                            Text(
+                                option.localizedLabel(language: model.appLanguage)
+                            )
+                            .tag(option)
                         }
                     }
 
                     settingPicker(
-                        title: "显示模式",
+                        title: model.localized(.displayMode),
                         icon: "circle.lefthalf.filled",
                         selection: Binding(
                             get: { model.themePreference },
@@ -835,14 +906,17 @@ struct ContentView: View {
                         )
                     ) {
                         ForEach(ThemePreference.allCases) { theme in
-                            Text(theme.label).tag(theme)
+                            Text(
+                                theme.localizedLabel(language: model.appLanguage)
+                            )
+                            .tag(theme)
                         }
                     }
 
                     settingToggle(
-                        title: "护眼模式",
+                        title: model.localized(.eyeCareMode),
                         icon: "leaf.fill",
-                        detail: "低饱和暖绿阅读背景",
+                        detail: model.localized(.eyeCareDetail),
                         isOn: Binding(
                             get: { model.eyeCareMode },
                             set: { model.updateEyeCareMode($0) }
@@ -850,7 +924,7 @@ struct ContentView: View {
                     )
 
                     settingSlider(
-                        title: "字体大小",
+                        title: model.localized(.fontSize),
                         icon: "textformat.size",
                         valueText: "\(Int(model.fontSize))",
                         value: Binding(
@@ -862,7 +936,7 @@ struct ContentView: View {
                     )
 
                     settingSlider(
-                        title: "页面亮度",
+                        title: model.localized(.pageBrightness),
                         icon: "sun.max.fill",
                         valueText: "\(Int(model.pageBrightness * 100))%",
                         value: Binding(
@@ -873,7 +947,7 @@ struct ContentView: View {
                         step: 0.05
                     )
 
-                    Text("拖动选择文字后右键，可高亮、批注、下划线、翻译或拷贝")
+                    Text(model.localized(.selectionHint))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -901,7 +975,11 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .background(.regularMaterial, in: Capsule())
             .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
-            .help(model.controlsExpanded ? "收起阅读设置" : "展开阅读设置")
+            .help(
+                model.controlsExpanded
+                    ? model.localized(.collapseSettings)
+                    : model.localized(.expandSettings)
+            )
         }
     }
 
@@ -999,7 +1077,7 @@ struct ContentView: View {
                 translationText = selectedText
                 isShowingTranslation = true
             } else {
-                model.errorMessage = "系统翻译功能需要 macOS 14.4 或更高版本。"
+                model.errorMessage = model.localized(.translationRequiresNewerSystem)
             }
         }
     }
@@ -1053,6 +1131,7 @@ private struct BookshelfBookItem: View {
     let book: LibraryBook
     let coverImage: NSImage?
     let history: ReadingHistoryEntry?
+    let language: AppLanguage
     let onOpen: () -> Void
     let onRemove: () -> Void
 
@@ -1062,7 +1141,8 @@ private struct BookshelfBookItem: View {
                 Button(action: onOpen) {
                     BookshelfCover(
                         book: book,
-                        image: coverImage
+                        image: coverImage,
+                        language: language
                     )
                 }
                 .buttonStyle(.plain)
@@ -1070,11 +1150,19 @@ private struct BookshelfBookItem: View {
 
                 Menu {
                     Button(
-                        "从我的图书移除",
+                        AppLocalization.text(
+                            .removeFromLibrary,
+                            language: language
+                        ),
                         role: .destructive,
                         action: onRemove
                     )
-                    Text("不会删除原始文件")
+                    Text(
+                        AppLocalization.text(
+                            .originalFileKept,
+                            language: language
+                        )
+                    )
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.caption.bold())
@@ -1102,10 +1190,21 @@ private struct BookshelfBookItem: View {
                 Text(book.fileExtension.uppercased())
                 if let history {
                     Text("·")
-                    Text("进度 \(history.progressPercentage)%")
+                    Text(
+                        AppLocalization.format(
+                            .progress,
+                            language: language,
+                            history.progressPercentage
+                        )
+                    )
                 }
                 if !book.isAvailable {
-                    Text("· 原文件不可用")
+                    Text(
+                        "· " + AppLocalization.text(
+                            .sourceUnavailable,
+                            language: language
+                        )
+                    )
                         .foregroundStyle(.red)
                 }
             }
@@ -1119,6 +1218,7 @@ private struct BookshelfBookItem: View {
 private struct BookshelfCover: View {
     let book: LibraryBook
     let image: NSImage?
+    let language: AppLanguage
 
     var body: some View {
         ZStack {
@@ -1172,7 +1272,18 @@ private struct BookshelfCover: View {
         }
         .shadow(color: .black.opacity(0.16), radius: 7, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 9))
-        .help(book.isAvailable ? "打开《\(book.title)》" : "原文件不可用")
+        .help(
+            book.isAvailable
+                ? AppLocalization.format(
+                    .openNamedBook,
+                    language: language,
+                    book.title
+                )
+                : AppLocalization.text(
+                    .sourceUnavailable,
+                    language: language
+                )
+        )
     }
 
     private var fallbackColors: [Color] {
@@ -1214,6 +1325,7 @@ private struct BookshelfCover: View {
 
 private struct HomeHistoryRow: View {
     let entry: ReadingHistoryEntry
+    let language: AppLanguage
     let isSelecting: Bool
     let isSelected: Bool
     let onOpen: () -> Void
@@ -1270,7 +1382,12 @@ private struct HomeHistoryRow: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("删除这条观看历史，不会移除图书")
+                .help(
+                    AppLocalization.text(
+                        .deleteHistoryHelp,
+                        language: language
+                    )
+                )
             }
         }
         .padding(.vertical, 4)
@@ -1312,37 +1429,46 @@ private struct VoiceCenterView: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("音色中心", systemImage: "waveform.circle.fill")
+                    Label(model.localized(.voiceCenter), systemImage: "waveform.circle.fill")
                         .font(.title2.bold())
-                    Text("集中管理已安装音色、系统音色下载和个人声音。")
+                    Text(model.localized(.voiceCenterDetail))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("完成") { dismiss() }
+                Button(model.localized(.done)) { dismiss() }
             }
 
             HStack(spacing: 14) {
                 voiceCenterCard(
-                    title: "已安装音色",
-                    detail: "当前：\(model.currentVoiceName)\n可试听、搜索和收藏本机音色。",
+                    title: model.localized(.installedVoices),
+                    detail: model.localized(
+                        .currentVoiceDetail,
+                        model.currentVoiceName
+                    ),
                     icon: "waveform",
-                    buttonTitle: "选择朗读音色",
+                    buttonTitle: model.localized(.chooseReadingVoice),
                     action: onOpenVoiceLibrary
                 )
 
                 voiceCenterCard(
-                    title: "增强／高级音色",
-                    detail: "由 macOS 下载并保存在本机，可获得更自然的朗读效果。",
+                    title: model.localized(.enhancedVoices),
+                    detail: model.localized(.enhancedVoicesDetail),
                     icon: "arrow.down.circle",
-                    buttonTitle: "打开系统音色下载",
+                    buttonTitle: model.localized(.openSystemVoiceDownloads),
                     action: model.openVoiceManagement
                 )
 
                 voiceCenterCard(
-                    title: "个人声音",
-                    detail: "状态：\(model.personalVoiceAccessState.label)\n已发现 \(model.personalVoiceCount) 个个人声音。",
+                    title: model.localized(.personalVoice),
+                    detail: model.localized(
+                        .personalVoiceStatusDetail,
+                        model.personalVoiceAccessState.localizedLabel(
+                            language: model.appLanguage
+                        ),
+                        model.personalVoiceCount
+                    ),
                     icon: "person.wave.2",
-                    buttonTitle: "录制与授权说明",
+                    buttonTitle: model.localized(.recordingAndAuthorization),
                     action: onOpenPersonalVoiceGuide
                 )
             }
@@ -1386,8 +1512,10 @@ private struct VoiceLibraryView: View {
     private var displayedVoices: [VoiceOption] {
         let matching = model.voices.filter { voice in
             guard !searchText.isEmpty else { return true }
-            return voice.displayName.localizedCaseInsensitiveContains(searchText)
-                || voice.gender.label.localizedCaseInsensitiveContains(searchText)
+            return voice.displayName(language: model.appLanguage)
+                .localizedCaseInsensitiveContains(searchText)
+                || voice.gender.localizedLabel(language: model.appLanguage)
+                    .localizedCaseInsensitiveContains(searchText)
         }
         return matching.sorted { lhs, rhs in
             let lhsFavorite = model.favoriteVoiceIDs.contains(lhs.id)
@@ -1404,7 +1532,10 @@ private struct VoiceLibraryView: View {
             if lhs.quality != rhs.quality {
                 return lhs.quality > rhs.quality
             }
-            return lhs.displayName.localizedStandardCompare(rhs.displayName)
+            return lhs.displayName(language: model.appLanguage)
+                .localizedStandardCompare(
+                    rhs.displayName(language: model.appLanguage)
+                )
                 == .orderedAscending
         }
     }
@@ -1417,16 +1548,16 @@ private struct VoiceLibraryView: View {
                     .foregroundStyle(Color.accentColor)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("本地音色库")
+                    Text(model.localized(.localVoiceLibrary))
                         .font(.title2.bold())
-                    Text("选择已下载到这台 Mac 的系统音色，朗读过程不会上传书籍内容。")
+                    Text(model.localized(.localVoicePrivacy))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Button("完成") {
+                Button(model.localized(.done)) {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -1438,6 +1569,7 @@ private struct VoiceLibraryView: View {
             List(displayedVoices) { voice in
                 VoiceLibraryRow(
                     voice: voice,
+                    language: model.appLanguage,
                     isSelected: model.selectedVoiceID == voice.id,
                     isFavorite: model.favoriteVoiceIDs.contains(voice.id),
                     onSelect: {
@@ -1451,7 +1583,10 @@ private struct VoiceLibraryView: View {
                     }
                 )
             }
-            .searchable(text: $searchText, prompt: "搜索音色、语言或性别")
+            .searchable(
+                text: $searchText,
+                prompt: model.localized(.searchVoices)
+            )
             .overlay {
                 if displayedVoices.isEmpty {
                     ContentUnavailableView.search(text: searchText)
@@ -1462,9 +1597,9 @@ private struct VoiceLibraryView: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("想要更自然的增强或高级音色？")
+                    Text(model.localized(.wantNaturalVoice))
                         .font(.callout.weight(.medium))
-                    Text("在系统设置中下载音色，返回声页后点“刷新”即可使用。")
+                    Text(model.localized(.downloadVoiceHint))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -1474,13 +1609,16 @@ private struct VoiceLibraryView: View {
                 Button {
                     model.openVoiceManagement()
                 } label: {
-                    Label("打开系统音色管理", systemImage: "arrow.up.forward.app")
+                    Label(
+                        model.localized(.openSystemVoiceManager),
+                        systemImage: "arrow.up.forward.app"
+                    )
                 }
 
                 Button {
                     model.refreshVoices()
                 } label: {
-                    Label("刷新", systemImage: "arrow.clockwise")
+                    Label(model.localized(.refresh), systemImage: "arrow.clockwise")
                 }
             }
             .padding(18)
@@ -1494,6 +1632,7 @@ private struct VoiceLibraryView: View {
 
 private struct VoiceLibraryRow: View {
     let voice: VoiceOption
+    let language: AppLanguage
     let isSelected: Bool
     let isFavorite: Bool
     let onSelect: () -> Void
@@ -1515,7 +1654,13 @@ private struct VoiceLibraryRow: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(voice.name)
                             .font(.body.weight(isSelected ? .semibold : .regular))
-                        Text("\(localizedLanguage) · \(voice.gender.label)")
+                        Text(
+                            localizedLanguage
+                                + " · "
+                                + voice.gender.localizedLabel(
+                                    language: language
+                                )
+                        )
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -1526,7 +1671,11 @@ private struct VoiceLibraryRow: View {
 
             Spacer()
 
-            Text(voice.isPersonal ? "个人声音" : voice.quality.label)
+            Text(
+                voice.isPersonal
+                    ? AppLocalization.text(.personalVoice, language: language)
+                    : voice.quality.localizedLabel(language: language)
+            )
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(
                     voice.isPersonal ? Color.green : voice.quality.badgeColor
@@ -1546,20 +1695,25 @@ private struct VoiceLibraryRow: View {
                 Image(systemName: "speaker.wave.2.fill")
             }
             .buttonStyle(.borderless)
-            .help("试听音色")
+            .help(AppLocalization.text(.previewVoice, language: language))
 
             Button(action: onToggleFavorite) {
                 Image(systemName: isFavorite ? "star.fill" : "star")
                     .foregroundStyle(isFavorite ? Color.orange : .secondary)
             }
             .buttonStyle(.borderless)
-            .help(isFavorite ? "取消收藏" : "收藏音色")
+            .help(
+                AppLocalization.text(
+                    isFavorite ? .removeFavorite : .addFavorite,
+                    language: language
+                )
+            )
         }
         .padding(.vertical, 4)
     }
 
     private var localizedLanguage: String {
-        Locale(identifier: "zh-Hans")
+        Locale(identifier: language.rawValue)
             .localizedString(forIdentifier: voice.language)
             ?? voice.language
     }
@@ -1577,15 +1731,15 @@ private struct PersonalVoiceGuideView: View {
                     .foregroundStyle(Color.accentColor)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("录制并使用个人声音")
+                    Text(model.localized(.recordPersonalVoice))
                         .font(.title2.bold())
-                    Text("录音和声音生成由 macOS 在本机完成，声页不会读取原始录音。")
+                    Text(model.localized(.personalRecordingPrivacy))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Button("完成") {
+                Button(model.localized(.done)) {
                     dismiss()
                 }
             }
@@ -1593,18 +1747,18 @@ private struct PersonalVoiceGuideView: View {
             VStack(alignment: .leading, spacing: 13) {
                 personalVoiceStep(
                     number: 1,
-                    title: "在系统设置中创建个人声音",
-                    detail: "按照系统提示朗读句子，等待 Mac 在本机完成声音生成。"
+                    title: model.localized(.createPersonalVoice),
+                    detail: model.localized(.createPersonalVoiceDetail)
                 )
                 personalVoiceStep(
                     number: 2,
-                    title: "允许声页使用个人声音",
-                    detail: "系统会显示一次授权提示；授权后个人声音才会出现在音色库。"
+                    title: model.localized(.allowPersonalVoice),
+                    detail: model.localized(.allowPersonalVoiceDetail)
                 )
                 personalVoiceStep(
                     number: 3,
-                    title: "返回声页刷新并选择",
-                    detail: "个人声音会带有“个人声音”标记，可像其他音色一样试听和使用。"
+                    title: model.localized(.returnRefreshChoose),
+                    detail: model.localized(.returnRefreshChooseDetail)
                 )
             }
             .padding(16)
@@ -1612,7 +1766,12 @@ private struct PersonalVoiceGuideView: View {
 
             HStack {
                 Label(
-                    "当前状态：\(model.personalVoiceAccessState.label)",
+                    model.localized(
+                        .currentStatus,
+                        model.personalVoiceAccessState.localizedLabel(
+                            language: model.appLanguage
+                        )
+                    ),
                     systemImage: personalVoiceStatusIcon
                 )
                 .foregroundStyle(personalVoiceStatusColor)
@@ -1620,19 +1779,24 @@ private struct PersonalVoiceGuideView: View {
                 Spacer()
 
                 if model.personalVoiceCount > 0 {
-                    Text("已发现 \(model.personalVoiceCount) 个个人声音")
+                    Text(
+                        model.localized(
+                            .personalVoiceCount,
+                            model.personalVoiceCount
+                        )
+                    )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Text("要求：Apple 芯片 Mac、受支持的系统语言及 macOS 14 或更高版本。Apple 规定个人声音仅限本人创建，并用于个人非商业用途。")
+            Text(model.localized(.personalVoiceRequirements))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
             if model.personalVoiceAccessState != .authorized {
                 Label(
-                    "更新版本后若一直显示“尚未授权”，请打开个人声音设置，在应用列表中选中并移除旧的“声页”，再返回此处重新允许。",
+                    model.localized(.personalVoiceReauthorization),
                     systemImage: "info.circle"
                 )
                 .font(.footnote)
@@ -1643,7 +1807,10 @@ private struct PersonalVoiceGuideView: View {
                 Button {
                     model.openPersonalVoiceSettings()
                 } label: {
-                    Label("打开个人声音设置", systemImage: "arrow.up.forward.app")
+                    Label(
+                        model.localized(.openPersonalVoiceSettings),
+                        systemImage: "arrow.up.forward.app"
+                    )
                 }
 
                 Spacer()
@@ -1653,8 +1820,8 @@ private struct PersonalVoiceGuideView: View {
                 } label: {
                     Label(
                         model.personalVoiceAccessState == .authorized
-                            ? "刷新个人声音"
-                            : "允许声页使用",
+                            ? model.localized(.refreshPersonalVoices)
+                            : model.localized(.allowVoicePage),
                         systemImage: "person.badge.key.fill"
                     )
                 }
@@ -1714,6 +1881,7 @@ private struct PersonalVoiceGuideView: View {
 }
 
 private struct ParagraphAnnotationEditor: View {
+    @EnvironmentObject private var model: ReaderViewModel
     @Environment(\.dismiss) private var dismiss
     let selectedText: String
     let annotation: TextAnnotation?
@@ -1747,12 +1915,14 @@ private struct ParagraphAnnotationEditor: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Label(
-                    annotation == nil ? "添加文字批注" : "编辑文字批注",
+                    annotation == nil
+                        ? model.localized(.addAnnotation)
+                        : model.localized(.editAnnotation),
                     systemImage: "highlighter"
                 )
                 .font(.title2.bold())
                 Spacer()
-                Button("取消") {
+                Button(model.localized(.cancel)) {
                     dismiss()
                 }
             }
@@ -1769,21 +1939,29 @@ private struct ParagraphAnnotationEditor: View {
                 .underline(isUnderlined, color: .secondary)
 
             VStack(alignment: .leading, spacing: 9) {
-                Text("高亮颜色")
+                Text(model.localized(.highlightColor))
                     .font(.headline)
 
                 HStack(spacing: 12) {
-                    annotationColorButton(nil, label: "无")
+                    annotationColorButton(
+                        nil,
+                        label: model.localized(.noColor)
+                    )
                     ForEach(ParagraphHighlightColor.allCases) { color in
-                        annotationColorButton(color, label: color.label)
+                        annotationColorButton(
+                            color,
+                            label: color.localizedLabel(
+                                language: model.appLanguage
+                            )
+                        )
                     }
                 }
             }
 
-            Toggle("为所选文字添加下划线", isOn: $isUnderlined)
+            Toggle(model.localized(.underlineSelection), isOn: $isUnderlined)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("注释")
+                Text(model.localized(.note))
                     .font(.headline)
                 TextEditor(text: $note)
                     .font(.body)
@@ -1802,14 +1980,14 @@ private struct ParagraphAnnotationEditor: View {
 
             HStack {
                 if annotation != nil {
-                    Button("删除批注", role: .destructive) {
+                    Button(model.localized(.deleteAnnotation), role: .destructive) {
                         onDelete()
                     }
                 }
 
                 Spacer()
 
-                Button("保存") {
+                Button(model.localized(.save)) {
                     onSave(note, highlightColor, isUnderlined)
                 }
                 .buttonStyle(.borderedProminent)
@@ -1859,18 +2037,33 @@ private struct ParagraphAnnotationEditor: View {
 }
 
 private struct ShortcutGuideView: View {
+    @EnvironmentObject private var model: ReaderViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let shortcuts: [(keys: String, action: String)] = [
-        ("fn + F9", "下一章"),
-        ("fn + F7", "上一章"),
-        ("空格", "播放 / 暂停"),
-        ("←", "上一页"),
-        ("→", "下一页"),
-        ("两指右滑", "上一页"),
-        ("两指左滑", "下一页"),
-        ("Esc", "退出应用")
-    ]
+    private var shortcuts: [(keys: String, action: String)] {
+        [
+            ("fn + F9", model.localized(.nextChapter)),
+            ("fn + F7", model.localized(.previousChapter)),
+            (
+                model.appLanguage == .simplifiedChinese
+                    || model.appLanguage == .traditionalChinese
+                    ? "空格"
+                    : "Space",
+                model.localized(.playPause)
+            ),
+            ("←", model.localized(.previousPage)),
+            ("→", model.localized(.nextPage)),
+            (
+                model.localized(.twoFingerRight),
+                model.localized(.previousPage)
+            ),
+            (
+                model.localized(.twoFingerLeft),
+                model.localized(.nextPage)
+            ),
+            ("Esc", model.localized(.exitApp))
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -1878,7 +2071,7 @@ private struct ShortcutGuideView: View {
                 Image(systemName: "keyboard")
                     .font(.title2)
                     .foregroundStyle(Color.accentColor)
-                Text("快捷操作指南")
+                Text(model.localized(.shortcutTitle))
                     .font(.title2.bold())
             }
 
@@ -1902,7 +2095,7 @@ private struct ShortcutGuideView: View {
             }
 
             Label {
-                Text("若鼠标设置中开启了“自然滚动”，触控板双指翻页方向可能与上方描述相反。")
+                Text(model.localized(.naturalScrollHint))
             } icon: {
                 Image(systemName: "info.circle")
             }
@@ -1916,7 +2109,7 @@ private struct ShortcutGuideView: View {
 
             HStack {
                 Spacer()
-                Button("完成") {
+                Button(model.localized(.done)) {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
@@ -1935,6 +2128,7 @@ private struct ParagraphView: View {
     let highlightedRange: NSRange?
     let annotations: [TextAnnotation]
     let fontSize: Double
+    let language: AppLanguage
     let onSpeak: (Int) -> Void
     let onSelectionCommand: (
         TextSelectionCommand,
@@ -1951,6 +2145,7 @@ private struct ParagraphView: View {
                 annotations: annotations,
                 spokenRange: highlightedRange,
                 fontSize: fontSize,
+                language: language,
                 onSpeak: { characterOffset in
                     onSpeak(sentenceStart(containing: characterOffset))
                 },

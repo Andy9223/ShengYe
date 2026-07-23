@@ -13,14 +13,18 @@ struct VoicePageApp: App {
         .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("打开书籍…") {
+                Button(model.localized(.openBookCommand)) {
                     NotificationCenter.default.post(name: .openBook, object: nil)
                 }
                 .keyboardShortcut("o")
             }
 
-            CommandMenu("朗读") {
-                Button(model.isSpeaking ? "暂停" : "开始或继续") {
+            CommandMenu(model.localized(.readingMenu)) {
+                Button(
+                    model.isSpeaking
+                        ? model.localized(.pause)
+                        : model.localized(.startOrContinue)
+                ) {
                     NotificationCenter.default.post(name: .toggleSpeech, object: nil)
                 }
                 .keyboardShortcut(.space, modifiers: [])

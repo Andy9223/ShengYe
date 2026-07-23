@@ -42,6 +42,7 @@ final class ReaderViewModel: NSObject, ObservableObject {
     @Published private(set) var readingHistory: [ReadingHistoryEntry]
     @Published private(set) var bookCoverImages: [UUID: NSImage] = [:]
     @Published var autoFollowSpeech: Bool
+    @Published var appLanguage: AppLanguage
 
     private let synthesizer = AVSpeechSynthesizer()
     private let previewSynthesizer = AVSpeechSynthesizer()
@@ -68,6 +69,7 @@ final class ReaderViewModel: NSObject, ObservableObject {
     private let favoriteVoicesKey = "VoicePage.favoriteVoices"
     private let eyeCareKey = "VoicePage.eyeCareMode"
     private let autoFollowSpeechKey = "VoicePage.autoFollowSpeech"
+    private let appLanguageKey = "VoicePage.appLanguage"
 
     override init() {
         let availableVoices = Self.availableVoiceOptions()
@@ -99,6 +101,9 @@ final class ReaderViewModel: NSObject, ObservableObject {
         autoFollowSpeech = defaults.object(forKey: autoFollowSpeechKey) == nil
             ? true
             : defaults.bool(forKey: autoFollowSpeechKey)
+        appLanguage = AppLanguage(
+            rawValue: defaults.string(forKey: appLanguageKey) ?? ""
+        ) ?? .simplifiedChinese
         personalVoiceAccessState = Self.personalVoiceAccessState(
             from: AVSpeechSynthesizer.personalVoiceAuthorizationStatus
         )
@@ -130,7 +135,8 @@ final class ReaderViewModel: NSObject, ObservableObject {
     }
 
     var currentVoiceName: String {
-        voices.first(where: { $0.id == selectedVoiceID })?.name ?? "系统默认"
+        voices.first(where: { $0.id == selectedVoiceID })?.name
+            ?? localized(.systemDefault)
     }
 
     var currentVoiceQuality: VoiceQualityTier {
@@ -156,14 +162,14 @@ final class ReaderViewModel: NSObject, ObservableObject {
 
     var currentChapterTitle: String {
         document.chapters.first(where: { $0.index == selectedChapterIndex })?.title
-            ?? "全文"
+            ?? localized(.fullText)
     }
 
     var statusText: String {
-        if isLoading { return "正在打开书籍…" }
-        if isPaused { return "已暂停" }
-        if isSpeaking { return "正在朗读" }
-        return "准备就绪"
+        if isLoading { return localized(.statusOpening) }
+        if isPaused { return localized(.statusPaused) }
+        if isSpeaking { return localized(.statusReading) }
+        return localized(.statusReady)
     }
 
     var readingProgressPercentage: Int {
@@ -196,7 +202,11 @@ final class ReaderViewModel: NSObject, ObservableObject {
                 saveProgress(currentParagraphIndex ?? 0)
                 screen = .reader
             } catch {
-                errorMessage = error.localizedDescription
+                if let loaderError = error as? DocumentLoaderError {
+                    errorMessage = localizedDescription(for: loaderError)
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
             isLoading = false
         }
@@ -215,7 +225,7 @@ final class ReaderViewModel: NSObject, ObservableObject {
     func openLibraryBook(_ book: LibraryBook) {
         let url = readingLibraryStore.resolveURL(for: book)
         guard FileManager.default.fileExists(atPath: url.path) else {
-            errorMessage = "找不到《\(book.title)》的原文件。文件可能已被移动或删除，请重新导入。"
+            errorMessage = localized(.missingBookFile, book.title)
             return
         }
         openDocument(url)
@@ -223,7 +233,7 @@ final class ReaderViewModel: NSObject, ObservableObject {
 
     func openHistoryEntry(_ entry: ReadingHistoryEntry) {
         guard let book = libraryBooks.first(where: { $0.id == entry.bookID }) else {
-            errorMessage = "这本书已不在“我的图书”中，请重新导入。"
+            errorMessage = localized(.missingLibraryBook)
             return
         }
         openLibraryBook(book)
@@ -254,6 +264,23 @@ final class ReaderViewModel: NSObject, ObservableObject {
         guard !ids.isEmpty else { return }
         readingHistory.removeAll { ids.contains($0.id) }
         persistReadingLibrary()
+    }
+
+    private func localizedDescription(
+        for error: DocumentLoaderError
+    ) -> String {
+        switch error {
+        case .unsupportedType:
+            return localized(.unsupportedFormat)
+        case .unreadableText:
+            return localized(.unknownEncoding)
+        case .invalidEPUB:
+            return localized(.invalidEPUB)
+        case .emptyDocument:
+            return localized(.noTextInFile)
+        case .unzipFailed(let detail):
+            return localized(.unzipFailed, detail)
+        }
     }
 
     func startOrResume() {
@@ -436,13 +463,13 @@ final class ReaderViewModel: NSObject, ObservableObject {
 
     func previewVoice(_ id: String) {
         guard let option = voices.first(where: { $0.id == id }) else {
-            errorMessage = "该音色已不可用，请刷新音色列表。"
+            errorMessage = localized(.unavailableVoice)
             return
         }
         guard let voice = resolvedSpeechVoice(identifier: id) else {
             errorMessage = option.isPersonal
-                ? "无法调用该个人声音。请确认已在系统设置中允许“声页”使用个人声音，然后返回刷新音色。"
-                : "该音色当前不可用，请在系统设置中重新下载后刷新音色。"
+                ? localized(.personalVoiceUnavailable)
+                : localized(.unavailableVoice)
             return
         }
         previewSynthesizer.stopSpeaking(at: .immediate)
@@ -504,6 +531,13 @@ final class ReaderViewModel: NSObject, ObservableObject {
     func updateTheme(_ theme: ThemePreference) {
         themePreference = theme
         defaults.set(theme.rawValue, forKey: themeKey)
+    }
+
+    func updateAppLanguage(_ language: AppLanguage) {
+        guard appLanguage != language else { return }
+        appLanguage = language
+        defaults.set(language.rawValue, forKey: appLanguageKey)
+        refreshSystemStatus()
     }
 
     func updateFontSize(_ size: Double) {
@@ -855,8 +889,8 @@ final class ReaderViewModel: NSObject, ObservableObject {
             utterance.voice = voice
         } else if !selectedVoiceID.isEmpty {
             errorMessage = currentVoiceIsPersonal
-                ? "个人声音当前不可用，请重新授权并刷新音色。"
-                : "所选音色当前不可用，已改用系统默认音色。"
+                ? localized(.personalVoiceUnavailable)
+                : localized(.unavailableVoice)
         }
 
         shouldContinueAfterFinish = true
@@ -1032,22 +1066,22 @@ final class ReaderViewModel: NSObject, ObservableObject {
         guard status == .authorized else {
             switch status {
             case .notDetermined:
-                errorMessage = "使用个人声音前，请在首页打开“录制／使用个人声音”，并允许声页访问。"
+                errorMessage = localized(.personalVoiceNeedsAccess)
             case .denied:
-                errorMessage = "个人声音权限未开启。请在系统设置中允许声页使用个人声音。"
+                errorMessage = localized(.personalVoicePermissionOff)
             case .unsupported:
-                errorMessage = "这台 Mac 或当前系统不支持个人声音。"
+                errorMessage = localized(.personalVoiceUnsupported)
             case .authorized:
                 break
             @unknown default:
-                errorMessage = "个人声音当前不可用，请检查系统设置后重试。"
+                errorMessage = localized(.personalVoiceUnavailable)
             }
             return false
         }
 
         guard resolvedSpeechVoice(identifier: selectedVoiceID) != nil else {
             refreshVoices()
-            errorMessage = "没有找到所选个人声音。请确认声音已生成完成，然后刷新音色。"
+            errorMessage = localized(.selectedPersonalVoiceMissing)
             return false
         }
         return true
@@ -1239,7 +1273,7 @@ final class ReaderViewModel: NSObject, ObservableObject {
             ) {
                 batteryText = String(text[range])
             } else if text.localizedCaseInsensitiveContains("AC Power") {
-                batteryText = "外接电源"
+                batteryText = localized(.pluggedIn)
             } else {
                 batteryText = "—"
             }
@@ -1349,7 +1383,7 @@ final class ReaderViewModel: NSObject, ObservableObject {
         )
         let chapterTitle = document.chapters.last(where: {
             $0.startParagraphIndex <= safeIndex
-        })?.title ?? "全文"
+        })?.title ?? localized(.fullText)
         let percentage = document.paragraphs.isEmpty
             ? 0
             : Int(
@@ -1427,6 +1461,20 @@ extension ReaderViewModel: AVSpeechSynthesizerDelegate {
                 completed: false
             )
         }
+    }
+}
+
+extension ReaderViewModel {
+    func localized(_ key: AppText) -> String {
+        AppLocalization.text(key, language: appLanguage)
+    }
+
+    func localized(_ key: AppText, _ arguments: CVarArg...) -> String {
+        String(
+            format: AppLocalization.text(key, language: appLanguage),
+            locale: Locale(identifier: appLanguage.rawValue),
+            arguments: arguments
+        )
     }
 }
 

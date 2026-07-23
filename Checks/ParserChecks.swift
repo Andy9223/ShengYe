@@ -4,6 +4,7 @@ import CoreFoundation
 @main
 struct ParserChecks {
     static func main() {
+        checkLocalization()
         checkParagraphNormalization()
         checkSentenceSplitting()
         checkTrackpadPagingGesture()
@@ -18,6 +19,26 @@ struct ParserChecks {
         checkEPUBLoading()
         inspectRealEPUBWhenRequested()
         print("Parser checks passed.")
+    }
+
+    private static func checkLocalization() {
+        let expectedLanguages = [
+            "zh-Hans", "en", "ja", "es", "fr", "de", "ru", "zh-Hant"
+        ]
+        precondition(
+            AppLanguage.allCases.map(\.rawValue) == expectedLanguages,
+            "界面语言列表不正确"
+        )
+        precondition(AppLocalization.isComplete, "本地化翻译不完整")
+
+        for language in AppLanguage.allCases {
+            precondition(!language.nativeName.isEmpty, "语言名称为空")
+            for key in AppText.allCases {
+                let value = AppLocalization.text(key, language: language)
+                precondition(!value.isEmpty, "\(language.rawValue) 翻译为空：\(key)")
+                precondition(value != key.rawValue, "\(language.rawValue) 缺少翻译：\(key)")
+            }
+        }
     }
 
     private static func checkParagraphNormalization() {
